@@ -135,7 +135,11 @@ export class MemStorage implements IStorage {
   }
 
   async createCurrency(insertCurrency: InsertCurrency): Promise<Currency> {
-    const currency: Currency = { ...insertCurrency, id: this.currencies.size + 1 };
+    const currency: Currency = { 
+      ...insertCurrency, 
+      id: this.currencies.size + 1,
+      rate: insertCurrency.rate ?? 1.0
+    };
     this.currencies.set(currency.code, currency);
     return currency;
   }
@@ -150,7 +154,11 @@ export class MemStorage implements IStorage {
 
   async createTrendingNiche(insertNiche: InsertTrendingNiche): Promise<TrendingNiche> {
     const id = this.currentNicheId++;
-    const niche: TrendingNiche = { ...insertNiche, id };
+    const niche: TrendingNiche = { 
+      ...insertNiche, 
+      id,
+      growthRate: insertNiche.growthRate ?? null
+    };
     this.trendingNiches.set(id, niche);
     return niche;
   }

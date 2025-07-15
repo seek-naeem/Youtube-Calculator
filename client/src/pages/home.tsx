@@ -61,12 +61,15 @@ export default function Home() {
           <p className="text-lg text-slate-600 dark:text-slate-400 max-w-2xl mx-auto mb-8">
             Estimate your YouTube earnings potential with our advanced calculator. Get insights into daily, monthly, and yearly revenue based on your channel's performance.
           </p>
-          
-          <TrendingNiches />
         </section>
 
         {/* Calculator Section */}
         <EarningsCalculator />
+        
+        {/* Trending Niches Section */}
+        <section className="mt-16">
+          <TrendingNiches />
+        </section>
 
         {/* Additional Features */}
         <section id="analytics" className="mt-16 max-w-4xl mx-auto">

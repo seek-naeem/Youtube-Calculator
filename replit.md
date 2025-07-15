@@ -53,14 +53,29 @@ Preferred communication style: Simple, everyday language.
 - `GET /api/trending-niches` - Get trending content niches
 - `POST /api/earnings-calculation` - Save user calculations
 - `GET /api/earnings-calculations` - Retrieve calculation history
+- `POST /api/youtube-import` - Import YouTube video/channel data with thumbnail extraction
+
+## Recent Updates (December 2024)
+
+### Enhanced YouTube Integration
+- **Video Data Extraction**: Added comprehensive video URL parsing supporting multiple YouTube formats
+- **Thumbnail Display**: Automatic thumbnail fetching and display for imported videos
+- **Video Metadata**: Shows video title, channel name, view count, subscriber count, and duration
+- **Layout Optimization**: Moved trending niches section below calculator for better user flow
+- **Improved UX**: Added visual cards displaying imported video/channel information
+
+### Data Models Updates
+- **YouTube Videos**: New schema for storing video metadata including thumbnails and analytics
+- **Enhanced Import**: Support for both individual videos and channel data import
 
 ## Data Flow
 
-1. **User Input**: User enters daily views, RPM, and selects currency
-2. **Real-time Calculation**: Frontend calculates earnings using utility functions
-3. **API Communication**: React Query manages server state and caching
-4. **Data Persistence**: Calculations saved to PostgreSQL via Drizzle ORM
-5. **Animation Updates**: GSAP animates number changes and UI transitions
+1. **User Input**: User enters daily views, RPM, and selects currency (or imports from YouTube)
+2. **YouTube Integration**: Video URLs are parsed to extract video ID and fetch thumbnail/metadata
+3. **Real-time Calculation**: Frontend calculates earnings using utility functions
+4. **API Communication**: React Query manages server state and caching
+5. **Data Persistence**: Calculations saved to PostgreSQL via Drizzle ORM
+6. **Animation Updates**: GSAP animates number changes and UI transitions
 
 ## External Dependencies
 

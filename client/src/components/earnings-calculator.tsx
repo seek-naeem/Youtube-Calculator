@@ -19,6 +19,7 @@ export function EarningsCalculator() {
   const [rpm, setRpm] = useState(1.5);
   const [selectedCurrency, setSelectedCurrency] = useState("USD");
   const [channelUrl, setChannelUrl] = useState("");
+  const [videoData, setVideoData] = useState<any>(null);
   
   const calculatorRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
@@ -49,10 +50,11 @@ export function EarningsCalculator() {
     },
     onSuccess: (data) => {
       if (data.success) {
+        setVideoData(data);
         setDailyViews(data.avgDailyViews);
         setRpm(data.estimatedRpm);
         toast({
-          title: "Channel Imported",
+          title: data.type === "video" ? "Video Imported" : "Channel Imported",
           description: `Successfully imported data for ${data.channelName}`,
         });
       }
@@ -134,12 +136,12 @@ export function EarningsCalculator() {
               <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-4 border border-slate-200 dark:border-slate-700">
                 <Label className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-2 flex items-center gap-2">
                   <Youtube className="w-4 h-4 text-red-600" />
-                  Import YouTube Channel (Optional)
+                  Import YouTube Video/Channel (Optional)
                 </Label>
                 <div className="flex space-x-2">
                   <Input
                     type="text"
-                    placeholder="Enter channel URL or @handle"
+                    placeholder="Enter video URL or channel URL"
                     value={channelUrl}
                     onChange={(e) => setChannelUrl(e.target.value)}
                     className="flex-1 bg-white dark:bg-slate-700 border-slate-300 dark:border-slate-600"
@@ -152,6 +154,44 @@ export function EarningsCalculator() {
                     <Search className="w-4 h-4" />
                   </Button>
                 </div>
+                
+                {/* Video Data Display */}
+                {videoData && videoData.type === "video" && (
+                  <div className="mt-4 p-4 bg-white dark:bg-slate-700 rounded-lg border border-slate-200 dark:border-slate-600">
+                    <div className="flex gap-4">
+                      <img 
+                        src={videoData.thumbnail} 
+                        alt={videoData.title}
+                        className="w-32 h-18 object-cover rounded-lg shadow-md"
+                        onError={(e) => {
+                          e.currentTarget.src = 'https://via.placeholder.com/320x180?text=Video+Thumbnail';
+                        }}
+                      />
+                      <div className="flex-1">
+                        <h4 className="font-semibold text-slate-800 dark:text-slate-200 mb-2 line-clamp-2">
+                          {videoData.title}
+                        </h4>
+                        <div className="text-sm text-slate-600 dark:text-slate-400 space-y-1">
+                          <p><span className="font-medium">Channel:</span> {videoData.channelName}</p>
+                          <p><span className="font-medium">Views:</span> {videoData.viewCount?.toLocaleString()}</p>
+                          <p><span className="font-medium">Subscribers:</span> {videoData.subscriberCount?.toLocaleString()}</p>
+                          <p><span className="font-medium">Duration:</span> {videoData.duration}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Channel Data Display */}
+                {videoData && videoData.type === "channel" && (
+                  <div className="mt-4 p-4 bg-white dark:bg-slate-700 rounded-lg border border-slate-200 dark:border-slate-600">
+                    <div className="text-sm text-slate-600 dark:text-slate-400 space-y-1">
+                      <p><span className="font-medium">Channel:</span> {videoData.channelName}</p>
+                      <p><span className="font-medium">Subscribers:</span> {videoData.subscriberCount?.toLocaleString()}</p>
+                      <p><span className="font-medium">Niche:</span> {videoData.niche}</p>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Daily Views */}
