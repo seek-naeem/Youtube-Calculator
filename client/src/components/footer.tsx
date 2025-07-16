@@ -51,7 +51,7 @@ export function Footer() {
         
         <div className="border-t border-slate-200/20 dark:border-slate-700/20 mt-8 pt-8 text-center">
           <p className="text-sm text-slate-600 dark:text-slate-400">
-            © 2024 CreatorCalc. All rights reserved. Made with ❤️ for creators.
+            © 2025 CreatorCalc. All rights reserved. Made with ❤️ for creators.
           </p>
         </div>
       </div>
