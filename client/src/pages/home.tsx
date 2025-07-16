@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react";
 import { gsap } from "gsap";
 import { Header } from "@/components/header";
 import { TrendingNiches } from "@/components/trending-niches";
-import { EarningsCalculator } from "@/components/earnings-calculator";
+import EarningsCalculator from '../components/earnings-calculator';
 import { Footer } from "@/components/footer";
 import { Card, CardContent } from "@/components/ui/card";
 import { TrendingUp, Users, Search, ChartLine } from "lucide-react";

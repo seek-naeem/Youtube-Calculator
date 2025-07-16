@@ -1,87 +1,135 @@
-import { useState, useEffect, useRef } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { gsap } from "gsap";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Slider } from "@/components/ui/slider";
-import { Currency } from "@shared/schema";
-import { formatCurrency, calculateEarnings } from "@/lib/currency";
-import { apiRequest } from "@/lib/queryClient";
-import { useToast } from "@/hooks/use-toast";
-import { Calculator, Eye, DollarSign, Globe, Youtube, Search } from "lucide-react";
-import { EarningsDisplay } from "./earnings-display";
+import { useState, useEffect, useRef } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { gsap } from 'gsap';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Slider } from '@/components/ui/slider';
+import { Currency } from '@shared/schema';
+import { formatCurrency, calculateEarnings } from '@/lib/currency';
+import { apiRequest } from '@/lib/queryClient';
+import { useToast } from '@/hooks/use-toast';
+import { Calculator, Eye, DollarSign, Globe, Youtube, Search } from 'lucide-react';
+import { EarningsDisplay } from './earnings-display';
 
-export function EarningsCalculator() {
+// Interface for YouTube video data
+interface VideoData {
+  title: string;
+  views: number;
+  duration: string;
+  publishedAt: string;
+  channelName?: string;
+  thumbnail?: string;
+}
+
+export default function EarningsCalculator() {
   const [dailyViews, setDailyViews] = useState(2000);
   const [rpm, setRpm] = useState(1.5);
-  const [selectedCurrency, setSelectedCurrency] = useState("USD");
-  const [channelUrl, setChannelUrl] = useState("");
-  const [videoData, setVideoData] = useState<any>(null);
-  
+  const [selectedCurrency, setSelectedCurrency] = useState('USD');
+  const [channelUrl, setChannelUrl] = useState('');
+  const [videoData, setVideoData] = useState<VideoData | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
   const calculatorRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
   const { data: currencies, isLoading: currenciesLoading } = useQuery<Currency[]>({
-    queryKey: ["/api/currencies"],
+    queryKey: ['/api/currencies'],
   });
 
   const saveCalculationMutation = useMutation({
     mutationFn: async (data: any) => {
-      const response = await apiRequest("POST", "/api/earnings-calculation", data);
+      const response = await apiRequest('POST', '/api/earnings-calculation', data);
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/earnings-calculations"] });
-      toast({
-        title: "Calculation Saved",
-        description: "Your earnings calculation has been saved successfully.",
-      });
+      queryClient.invalidateQueries({ queryKey: ['/api/earnings-calculations'] });
+      toast({ title: 'Calculation Saved', description: 'Your earnings calculation has been saved successfully.' });
     },
   });
 
   const youtubeImportMutation = useMutation({
     mutationFn: async (channelUrl: string) => {
-      const response = await apiRequest("POST", "/api/youtube-import", { channelUrl });
-      return response.json();
+      const videoIdMatch = channelUrl.match(/[?&]v=([^&]+)/) || channelUrl.match(/\/shorts\/([^/?]+)/);
+      const videoId = videoIdMatch ? videoIdMatch[1] : channelUrl.split('/').pop();
+      console.log('Extracted Video ID:', videoId); // Debug
+      await fetchVideoData(videoId);
+      return { success: true, type: 'video' };
     },
     onSuccess: (data) => {
       if (data.success) {
-        setVideoData(data);
-        setDailyViews(data.avgDailyViews);
-        setRpm(data.estimatedRpm);
-        toast({
-          title: data.type === "video" ? "Video Imported" : "Channel Imported",
-          description: `Successfully imported data for ${data.channelName}`,
-        });
+        toast({ title: 'Video Imported', description: `Successfully imported data for the video` });
       }
     },
     onError: () => {
       toast({
-        title: "Import Failed",
-        description: "Failed to import channel data. Please check the URL and try again.",
-        variant: "destructive",
+        title: 'Import Failed',
+        description: 'Failed to import video data. Check the URL and try again.',
+        variant: 'destructive',
       });
     },
   });
 
+  const API_KEY = 'AIzaSyAPTfYn76MsbWJ59chqIvZCYYtbNhyWrds'; // Replace with your new API key
+  const API_URL = 'https://www.googleapis.com/youtube/v3/videos';
+
+  const fetchVideoData = async (videoId: string) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await fetch(
+        `${API_URL}?part=snippet,statistics,contentDetails&id=${encodeURIComponent(videoId)}&key=${API_KEY}`,
+        {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' },
+        }
+      );
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      const data = await response.json();
+      console.log('API Response:', data); // Debug full response
+      if (data.items && data.items.length > 0) {
+        const video = data.items[0];
+        setVideoData({
+          title: video.snippet.title,
+          views: parseInt(video.statistics.viewCount) || 0,
+          duration: video.contentDetails.duration.replace('PT', '').replace('S', '') || 'N/A',
+          publishedAt: new Date(video.snippet.publishedAt).toLocaleDateString(),
+          channelName: video.snippet.channelTitle || 'Unknown',
+          thumbnail: video.snippet.thumbnails?.default?.url || '',
+        });
+        setDailyViews(parseInt(video.statistics.viewCount) / 30 || 0);
+        setRpm(1.5);
+      } else {
+        throw new Error('No video data found for this ID');
+      }
+    } catch (err) {
+      setError(`Failed to fetch video data. Check video ID or API key. Details: ${err.message}`);
+      console.error('API Error:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // GSAP animation
   useEffect(() => {
     if (calculatorRef.current) {
       gsap.from(calculatorRef.current, {
         y: 30,
         opacity: 0,
         duration: 0.8,
-        ease: "power2.out",
-        delay: 0.4
+        ease: 'power2.out',
+        delay: 0.4,
       });
     }
   }, []);
 
+  // Handle save calculation
   const handleSaveCalculation = () => {
-    const currency = currencies?.find(c => c.code === selectedCurrency);
+    const currency = currencies?.find((c) => c.code === selectedCurrency);
     if (!currency) return;
 
     const { current: dailyEarnings } = calculateEarnings(dailyViews, rpm, 'daily');
@@ -99,12 +147,14 @@ export function EarningsCalculator() {
     });
   };
 
+  // Handle YouTube import
   const handleYoutubeImport = () => {
     if (channelUrl.trim()) {
       youtubeImportMutation.mutate(channelUrl);
     }
   };
 
+  // Calculate earnings inside component scope
   const earnings = {
     daily: calculateEarnings(dailyViews, rpm, 'daily'),
     monthly: calculateEarnings(dailyViews, rpm, 'monthly'),
@@ -113,24 +163,19 @@ export function EarningsCalculator() {
 
   return (
     <section id="calculator" className="max-w-6xl mx-auto">
-      <Card 
-        ref={calculatorRef}
-        className="glass-morphism backdrop-blur-lg bg-white/10 dark:bg-black/20 border-white/20 dark:border-white/10 shadow-2xl"
-      >
+      <Card ref={calculatorRef} className="glass-morphism backdrop-blur-lg bg-white/10 dark:bg-black/20 border-white/20 dark:border-white/10 shadow-2xl">
         <CardHeader>
           <CardTitle className="text-2xl font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-3">
             <Calculator className="text-indigo-600" />
             YouTube Earnings Calculator
           </CardTitle>
         </CardHeader>
-        
+
         <CardContent className="p-8">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             {/* Left side - Inputs */}
             <div className="space-y-6">
-              <h3 className="text-xl font-semibold text-slate-800 dark:text-slate-200 mb-6">
-                Calculator Settings
-              </h3>
+              <h3 className="text-xl font-semibold text-slate-800 dark:text-slate-200 mb-6">Calculator Settings</h3>
 
               {/* YouTube Import */}
               <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-4 border border-slate-200 dark:border-slate-700">
@@ -148,50 +193,42 @@ export function EarningsCalculator() {
                   />
                   <Button
                     onClick={handleYoutubeImport}
-                    disabled={youtubeImportMutation.isPending}
+                    disabled={youtubeImportMutation.isPending || loading}
                     className="px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700"
                   >
                     <Search className="w-4 h-4" />
                   </Button>
                 </div>
-                
+
                 {/* Video Data Display */}
-                {videoData && videoData.type === "video" && (
+                {videoData && (
                   <div className="mt-4 p-4 bg-white dark:bg-slate-700 rounded-lg border border-slate-200 dark:border-slate-600">
                     <div className="flex gap-4">
-                      <img 
-                        src={videoData.thumbnail} 
-                        alt={videoData.title}
-                        className="w-32 h-18 object-cover rounded-lg shadow-md"
-                        onError={(e) => {
-                          e.currentTarget.src = 'https://via.placeholder.com/320x180?text=Video+Thumbnail';
-                        }}
-                      />
+                      {videoData.thumbnail && (
+                        <img
+                          src={videoData.thumbnail}
+                          alt={videoData.title}
+                          className="w-32 h-18 object-cover rounded-lg shadow-md"
+                          onError={(e) => {
+                            e.currentTarget.src = 'https://via.placeholder.com/320x180?text=Video+Thumbnail';
+                          }}
+                        />
+                      )}
                       <div className="flex-1">
                         <h4 className="font-semibold text-slate-800 dark:text-slate-200 mb-2 line-clamp-2">
                           {videoData.title}
                         </h4>
                         <div className="text-sm text-slate-600 dark:text-slate-400 space-y-1">
                           <p><span className="font-medium">Channel:</span> {videoData.channelName}</p>
-                          <p><span className="font-medium">Views:</span> {videoData.viewCount?.toLocaleString()}</p>
-                          <p><span className="font-medium">Subscribers:</span> {videoData.subscriberCount?.toLocaleString()}</p>
-                          <p><span className="font-medium">Duration:</span> {videoData.duration}</p>
+                          <p><span className="font-medium">Views:</span> {videoData.views.toLocaleString()}</p>
+                          <p><span className="font-medium">Duration:</span> {videoData.duration}s</p>
+                          <p><span className="font-medium">Published:</span> {videoData.publishedAt}</p>
                         </div>
                       </div>
                     </div>
                   </div>
                 )}
-                
-                {/* Channel Data Display */}
-                {videoData && videoData.type === "channel" && (
-                  <div className="mt-4 p-4 bg-white dark:bg-slate-700 rounded-lg border border-slate-200 dark:border-slate-600">
-                    <div className="text-sm text-slate-600 dark:text-slate-400 space-y-1">
-                      <p><span className="font-medium">Channel:</span> {videoData.channelName}</p>
-                      <p><span className="font-medium">Subscribers:</span> {videoData.subscriberCount?.toLocaleString()}</p>
-                      <p><span className="font-medium">Niche:</span> {videoData.niche}</p>
-                    </div>
-                  </div>
-                )}
+                {error && <p style={{ color: 'red' }}>{error}</p>}
               </div>
 
               {/* Daily Views */}
@@ -263,17 +300,12 @@ export function EarningsCalculator() {
                 disabled={saveCalculationMutation.isPending}
                 className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-medium py-3"
               >
-                {saveCalculationMutation.isPending ? "Saving..." : "Save Calculation"}
+                {saveCalculationMutation.isPending ? 'Saving...' : 'Save Calculation'}
               </Button>
             </div>
 
             {/* Right side - Results */}
-            <EarningsDisplay 
-              earnings={earnings} 
-              currency={selectedCurrency}
-              dailyViews={dailyViews}
-              rpm={rpm}
-            />
+            <EarningsDisplay earnings={earnings} currency={selectedCurrency} dailyViews={dailyViews} rpm={rpm} />
           </div>
         </CardContent>
       </Card>
