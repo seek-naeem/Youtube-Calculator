@@ -1,61 +1,81 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
-import { storage } from "./storage";
+
+// Mock storage implementation
+const mockStorage = {
+  getCurrencies: async () => [{ code: "USD", name: "US Dollar" }, { code: "INR", name: "Indian Rupee" }],
+  getTrendingNiches: async () => [
+    { id: 1, name: "Tech", status: "Hot", statusColor: "blue", imageUrl: "/tech.jpg", description: "Tech tutorials", growthRate: "10%" },
+    { id: 2, name: "Gaming", status: "Trending", statusColor: "green", imageUrl: "/gaming.jpg", description: "Gaming reviews", growthRate: "15%" },
+  ],
+  saveEarningsCalculation: async (data: any) => data,
+  getEarningsCalculations: async () => [],
+};
+
 import { insertEarningsCalculationSchema } from "@shared/schema";
 import { z } from "zod";
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Get all currencies
   app.get("/api/currencies", async (req, res) => {
     try {
-      const currencies = await storage.getCurrencies();
-      res.json(currencies);
+      const currencies = await mockStorage.getCurrencies();
+      res.json(currencies || []);
     } catch (error) {
+      console.log(`Error in /api/currencies: ${(error as Error).message}`);
       res.status(500).json({ error: "Failed to fetch currencies" });
     }
   });
 
-  // Get trending niches
   app.get("/api/trending-niches", async (req, res) => {
     try {
-      const niches = await storage.getTrendingNiches();
-      res.json(niches);
+      const niches = await mockStorage.getTrendingNiches();
+      if (!niches || niches.length === 0) {
+        const mockNiches = [
+          { id: 1, name: "Tech", status: "Hot", statusColor: "blue", imageUrl: "/tech.jpg", description: "Tech tutorials", growthRate: "10%" },
+          { id: 2, name: "Gaming", status: "Trending", statusColor: "green", imageUrl: "/gaming.jpg", description: "Gaming reviews", growthRate: "15%" },
+        ];
+        res.json(mockNiches);
+      } else {
+        res.json(niches);
+      }
     } catch (error) {
+      console.log(`Error in /api/trending-niches: ${(error as Error).message}`);
       res.status(500).json({ error: "Failed to fetch trending niches" });
     }
   });
 
-  // Save earnings calculation
   app.post("/api/earnings-calculation", async (req, res) => {
     try {
       const validatedData = insertEarningsCalculationSchema.parse(req.body);
-      const calculation = await storage.saveEarningsCalculation(validatedData);
-      res.json(calculation);
+      const calculation = await mockStorage.saveEarningsCalculation(validatedData);
+      res.status(201).json(calculation);
     } catch (error) {
       if (error instanceof z.ZodError) {
         res.status(400).json({ error: "Invalid data", details: error.errors });
       } else {
+        console.log(`Error in /api/earnings-calculation: ${(error as Error).message}`);
         res.status(500).json({ error: "Failed to save calculation" });
       }
     }
   });
 
-  // Get earnings calculations history
   app.get("/api/earnings-calculations", async (req, res) => {
     try {
-      const calculations = await storage.getEarningsCalculations();
-      res.json(calculations);
+      const calculations = await mockStorage.getEarningsCalculations();
+      res.json(calculations || []);
     } catch (error) {
+      console.log(`Error in /api/earnings-calculations: ${(error as Error).message}`);
       res.status(500).json({ error: "Failed to fetch calculations" });
     }
   });
 
-  // YouTube video/channel import endpoint  
   app.post("/api/youtube-import", async (req, res) => {
     try {
       const { channelUrl } = req.body;
-      
-      // Function to extract video ID from URL
+      if (!channelUrl || typeof channelUrl !== "string") {
+        return res.status(400).json({ error: "channelUrl is required and must be a string" });
+      }
+
       const extractVideoId = (url: string): string | null => {
         const patterns = [
           /(?:https?:\/\/)?(?:www\.)?youtube\.com\/watch\?v=([^&\n?#]+)/,
@@ -63,7 +83,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           /(?:https?:\/\/)?(?:www\.)?youtube\.com\/v\/([^&\n?#]+)/,
           /(?:https?:\/\/)?youtu\.be\/([^&\n?#]+)/,
         ];
-        
         for (const pattern of patterns) {
           const match = url.match(pattern);
           if (match) return match[1];
@@ -74,7 +93,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const videoId = extractVideoId(channelUrl);
       
       if (videoId) {
-        // Mock video data - in real implementation this would call YouTube Data API
         const mockVideoData = {
           videoId,
           title: "Amazing Tech Review - iPhone 15 Pro Max",
@@ -86,16 +104,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           publishedAt: "2024-01-15T10:30:00Z",
           duration: "12:45",
           description: "Complete review of the latest iPhone with detailed analysis...",
-          avgDailyViews: Math.floor(875000 / 30), // Rough estimate
+          avgDailyViews: Math.floor(875000 / 30),
           estimatedRpm: 2.85,
           niche: "Tech Reviews",
           success: true,
-          type: "video"
+          type: "video",
         };
-        
         res.json(mockVideoData);
       } else {
-        // Mock channel data
         const mockChannelData = {
           channelName: "Sample Creator",
           subscriberCount: 125000,
@@ -103,12 +119,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           estimatedRpm: 2.45,
           niche: "Tech Reviews",
           success: true,
-          type: "channel"
+          type: "channel",
         };
-        
         res.json(mockChannelData);
       }
     } catch (error) {
+      console.log(`Error in /api/youtube-import: ${(error as Error).message}`);
       res.status(500).json({ error: "Failed to import YouTube data" });
     }
   });

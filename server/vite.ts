@@ -19,7 +19,7 @@ export function log(message: string, source = "express") {
   console.log(`${formattedTime} [${source}] ${message}`);
 }
 
-export async function setupVite(app: Express, server: Server) {
+export async function setupVite(app: Express, server: Server, p0: { proxy: { "/api": string; }; }) {
   const serverOptions = {
     middlewareMode: true,
     hmr: { server },
